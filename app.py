@@ -1,68 +1,14 @@
-import random
 import streamlit as st
 
-def get_range_for_difficulty(difficulty: str):
-    if difficulty == "Easy":
-        return 1, 20
-    if difficulty == "Normal":
-        return 1, 100
-    if difficulty == "Hard":
-        return 1, 50
-    return 1, 100
-
-
-def parse_guess(raw: str):
-    if raw is None:
-        return False, None, "Enter a guess."
-
-    if raw == "":
-        return False, None, "Enter a guess."
-
-    try:
-        if "." in raw:
-            value = int(float(raw))
-        else:
-            value = int(raw)
-    except Exception:
-        return False, None, "That is not a number."
-
-    return True, value, None
-
-
-def check_guess(guess, secret):
-    if guess == secret:
-        return "Win", "🎉 Correct!"
-
-    try:
-        if guess > secret:
-            return "Too High", "📈 Go HIGHER!"
-        else:
-            return "Too Low", "📉 Go LOWER!"
-    except TypeError:
-        g = str(guess)
-        if g == secret:
-            return "Win", "🎉 Correct!"
-        if g > secret:
-            return "Too High", "📈 Go HIGHER!"
-        return "Too Low", "📉 Go LOWER!"
-
-
-def update_score(current_score: int, outcome: str, attempt_number: int):
-    if outcome == "Win":
-        points = 100 - 10 * (attempt_number + 1)
-        if points < 10:
-            points = 10
-        return current_score + points
-
-    if outcome == "Too High":
-        if attempt_number % 2 == 0:
-            return current_score + 5
-        return current_score - 5
-
-    if outcome == "Too Low":
-        return current_score - 5
-
-    return current_score
+# FIX: I asked the AI (Claude, agent mode) to refactor the game logic out of the
+# UI; it moved these functions from app.py into logic_utils.py so they're testable.
+from logic_utils import (
+    get_range_for_difficulty,
+    start_new_game,
+    parse_guess,
+    check_guess,
+    update_score,
+)
 
 st.set_page_config(page_title="Glitchy Guesser", page_icon="🎮")
 
@@ -89,20 +35,14 @@ low, high = get_range_for_difficulty(difficulty)
 st.sidebar.caption(f"Range: {low} to {high}")
 st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
 
-if "secret" not in st.session_state:
-    st.session_state.secret = random.randint(low, high)
-
-if "attempts" not in st.session_state:
-    st.session_state.attempts = 1
-
-if "score" not in st.session_state:
-    st.session_state.score = 0
-
-if "status" not in st.session_state:
-    st.session_state.status = "playing"
-
-if "history" not in st.session_state:
-    st.session_state.history = []
+# FIX: I reported that Hard could show a secret above 50; the AI traced it to the
+# secret being generated only once and never refreshed when difficulty changed.
+# Bug 3 fix: start a fresh game on first load AND whenever the difficulty
+# changes, so the secret is always drawn from the active difficulty's range
+# (e.g. Hard stays within 1-50 instead of keeping a stale Normal secret).
+if "secret" not in st.session_state or st.session_state.get("difficulty") != difficulty:
+    st.session_state.update(start_new_game(difficulty))
+    st.session_state.difficulty = difficulty
 
 st.subheader("Make a guess")
 
@@ -132,8 +72,15 @@ with col3:
     show_hint = st.checkbox("Show hint", value=True)
 
 if new_game:
-    st.session_state.attempts = 0
-    st.session_state.secret = random.randint(1, 100)
+    # FIX: I noticed New Game didn't really restart; the AI found it reset only
+    # attempts (not status/score/history) and hardcoded the 1-100 range. We
+    # replaced it with a single start_new_game() call.
+    # Bug 2 fix: fully reset the round (status, score, history) instead of only
+    # the attempt counter, so a finished game can actually be replayed.
+    # Bug 3 fix: start_new_game draws the secret from the current difficulty's
+    # range instead of a hardcoded 1-100.
+    st.session_state.update(start_new_game(difficulty))
+    st.session_state.difficulty = difficulty
     st.success("New game started.")
     st.rerun()
 
@@ -155,12 +102,12 @@ if submit:
     else:
         st.session_state.history.append(guess_int)
 
-        if st.session_state.attempts % 2 == 0:
-            secret = str(st.session_state.secret)
-        else:
-            secret = st.session_state.secret
-
-        outcome, message = check_guess(guess_int, secret)
+        # FIX: I hit a backwards hint (secret 88, guess 77 said "go lower"); the AI
+        # pinpointed this even-attempt stringify hack as the cause and we removed it.
+        # Bug 1 fix: compare against the real (int) secret every attempt. The old
+        # code stringified the secret on even attempts, forcing check_guess into
+        # a lexicographic string comparison that produced backwards hints.
+        outcome, message = check_guess(guess_int, st.session_state.secret)
 
         if show_hint:
             st.warning(message)
