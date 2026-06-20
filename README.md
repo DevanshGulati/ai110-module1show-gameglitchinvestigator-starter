@@ -77,9 +77,16 @@ The secret is visible as **63** via the "Developer Debug Info" expander.
 ## 🧪 Test Results
 
 ```
-# Paste your pytest output here, e.g.:
-# pytest tests/
-# ========================= X passed in 0.XXs =========================
+$ pytest tests/
+============================= test session starts ==============================
+platform darwin -- Python 3.13.13, pytest-9.0.3, pluggy-1.6.0
+rootdir: .../ai110-module1show-gameglitchinvestigator-starter
+plugins: anyio-4.13.0
+collected 16 items
+
+tests/test_game_logic.py ................                                [100%]
+
+============================== 16 passed in 0.01s ==============================
 ```
 
 ## 🚀 Stretch Features
