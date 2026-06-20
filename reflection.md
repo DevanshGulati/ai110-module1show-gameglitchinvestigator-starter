@@ -91,11 +91,32 @@ when it actually returns an (outcome, message) tuple, which helped me update the
 
 - How would you explain Streamlit "reruns" and session state to a friend who has never used Streamlit?
 
+Every time you click a button or change an input, Streamlit re-runs your whole script
+from top to bottom, so normal variables get wiped and recreated each time. Session state
+is a special box that survives those reruns, which is where you keep things like the
+secret number, score, and attempts. Bug 2 happened because "New Game" only reset part of
+that box, so old values (like a "won" status) stuck around and broke the next round.
+
 ---
 
 ## 5. Looking ahead: your developer habits
 
 - What is one habit or strategy from this project that you want to reuse in future labs or projects?
   - This could be a testing habit, a prompting strategy, or a way you used Git.
+
+Writing a small pytest test for each bug right after fixing it, instead of just eyeballing
+the app. Pinning the exact failing case (secret 88, guess 77) as a test means the bug
+can't quietly come back later.
+
 - What is one thing you would do differently next time you work with AI on a coding task?
+
+Run the tests myself before trusting the AI's "it works" — the test-folder collision only
+showed up when I actually ran pytest, not from reading the AI's summary. I also rejected
+the AI offering to fix the scoring logic, since that wasn't one of my three bugs and I
+wanted to keep the change focused; I'd keep scoping the AI tightly like that.
+
 - In one or two sentences, describe how this project changed the way you think about AI generated code.
+
+AI is great at quickly locating and explaining bugs, but its code still needs to be run
+and verified — it can be confidently wrong about small things (like where files go). I now
+treat AI output as a draft to check, not a finished answer.
